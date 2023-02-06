@@ -1,0 +1,121 @@
+var express = require("express");
+var router = express.Router();
+var db = require("./database");
+var jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+var faker = require("faker");
+
+const secret = "proiect";
+
+//Check Authentification Step
+function checkAuthorization(req, res, next) {
+    const bearerHeader = req.headers["authorization"];
+  
+    if (typeof bearerHeader !== "undefined") {
+      const bearer = bearerHeader.split(" ");
+      const bearerToken = bearer[1];
+      req.token = bearerToken;
+  
+      jwt.verify(req.token, secret, (err, decoded) => {
+        if (err) {
+          if (err.expiredAt) {
+            res.json({ message: "Your token expired!" });
+          } else {
+            res.json({ message: "Decoding error!" });
+          }
+        } else {
+          console.log(decoded.email);
+          next();
+        }
+      });
+    } else {
+      res.json({ message: "Missing token!" });
+    }
+  }
+
+  router.get("/utilizatori", async (req, res) => {
+    try {
+      let utilizatori = [];
+      //Get all users
+      const response = await db.collection('Utilizatori').get();
+      //Iterate over
+      response.forEach((doc) => {
+        console.log(doc.id, '=>', doc.data());
+        let utilizator = {};
+    
+        utilizator.id = doc.id;
+        utilizator.name = doc.data().name;
+        utilizator.email = doc.data().email;
+        utilizator.password = doc.data().password;
+        //Push every elem into Obj Array
+        utilizatori.push(utilizator);
+      });
+
+      //Respond with autori array
+      res.json(utilizatori);
+
+    } catch(error) {
+    res.send(error);
+  }
+  });
+
+  //Get utilizator
+  router.get('/utilizatori/:id', async (req, res) => {
+    let name = await db.collection("Utilizatori").doc(req.params.id).get();
+    res.json(name);
+  });
+
+
+  //Create user
+  router.post('/utilizatori', checkAuthorization, async (req, res) => {
+    console.log("Vrei sa adaugi un utilizator.");
+    let utilizator = {};
+    utilizator.name=req.body.name;
+    utilizator.email=req.body.email;
+    utilizator.password=req.body.password;
+    const insert = await db.collection("Utilizatori").add(utilizator);
+
+    res.json({id: insert.id })
+  })
+
+ 
+//Edit utilizator
+router.put('/utilizatori/:id', checkAuthorization, async (req, res) => {
+  console.log("Vrei sa actualizezi utilizatorul cu id-ul: " + req.params.id)
+  const response = await db
+    .collection("Utilizatori")
+    .doc(req.params.id)
+    .update(req.body);
+
+  res.json({
+    message: "Am modificat utilizatorul cu id-ul " + req.body.id + " de pe server!",
+  });
+});
+
+  //Delete utilizator
+router.delete('/utilizatori/:id', checkAuthorization, (req, res) => {
+  console.log("Vrei sa stergi utilizatorul cu id-ul: " + req.params.id);
+  const students = db
+    .collection("Utilizatori")
+    .doc(id)
+    .collection("Profil")
+    .listDocuments()
+    .then((val) => {
+      val.map((val) => {
+        val.delete();
+      });
+    });
+  const utilizator = db.collection("Utilizatori").doc(id).delete();
+  res.json({
+    message: "Am sters utilizatorul cu id ul" + req.params.id + " de pe server!",
+  });
+});
+/* End - Users operations */
+
+module.exports = router;
+
+
+
+ 
+
+  

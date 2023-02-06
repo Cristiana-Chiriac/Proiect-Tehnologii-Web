@@ -1,0 +1,123 @@
+var express = require("express");
+var router = express.Router();
+var db = require("../database");
+var jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+var faker = require("faker");
+
+const secret = "proiect";
+
+//Check auth
+function checkAuthorization(req, res, next) {
+    const bearerHeader = req.headers["authorization"];
+  
+    if (typeof bearerHeader !== "undefined") {
+      const bearer = bearerHeader.split(" ");
+      const bearerToken = bearer[1];
+      req.token = bearerToken;
+  
+      jwt.verify(req.token, secret, (err, decoded) => {
+        if (err) {
+          if (err.expiredAt) {
+            res.json({ message: "Your token expired!" });
+          } else {
+            res.json({ message: "Decoding error!" });
+          }
+        } else {
+          console.log(decoded.email);
+          next();
+        }
+      });
+    } else {
+      res.json({ message: "Missing token!" });
+    }
+  }
+
+  router.get("/utilizatori/profil/i:id", async (req, res) =>{
+    console.log("Getting the profile");
+    const response = await db
+    .collection("Utilizatori")
+    .doc(req.params.id)
+    .collection("Profil")
+    .get();
+
+    let profiles = [];
+    console.log(response);
+    response.forEach((doc) => {
+        let profil = {};
+        profil.id= doc.id;
+        profil.address = doc.data().address;
+        profil.phone = doc.data().phone;
+        
+        profiles.push(profil);
+    });
+    res.json(profiles); 
+  });
+
+  //Post user's profile address
+router.post("/utilizatori/profil/:id", async (req, res) => {
+    console.log("Vrei sa actualizezi profilul cu id-ul: " + req.params.id);
+    let obj = {};
+    obj.phone = req.body.phone;
+  
+    let response = await db
+      .collection("Utilizatori")
+      .doc(req.params.id)
+      .collection("Profil")
+      .add(obj);
+  
+    res.json(response);
+  });
+
+  //Delete user's profile
+router.delete(
+    "/utilizatori/profil/:id/:profilId",
+    checkAuthorization,
+    async (req, res) => {
+      console.log("Vrei sa stergi profilul cu id-ul: " + req.params.id);
+  
+      let obj = {};
+      obj.name = req.body.name;
+  
+      let response = await db
+        .collection("Utilizatori")
+        .doc(req.params.id)
+        .collection("Profil")
+        .doc(req.params.profilId)
+        .delete();
+  
+      res.json(
+        "Am sters profilul celui cu idul" +
+          req.params.id +
+          " cu id ul" +
+          req.params.profilId +
+          " de pe server!"
+      );
+    }
+  );
+
+  //Put user's profile
+router.put(
+    "/utilizatori/profil/:id/:profilId",
+    checkAuthorization,
+    async (req, res) => {
+      console.log("Vrei sa editezi utilizatorul cu id-ul: " + req.params.id);
+  
+      // const data = await db.collection("students").doc(req.params.id).get();
+      // const student = data.data();
+      // console.log(student);
+      let obj = {};
+      obj.name = req.body.name;
+  
+      let response = await db
+        .collection("Utilizatori")
+        .doc(req.params.id)
+        .collection("Profil")
+        .doc(req.params.profilId)
+        .update(obj);
+  
+      res.json(response);
+    }
+  );
+  
+  module.exports = router;
